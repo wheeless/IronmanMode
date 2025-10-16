@@ -217,14 +217,17 @@ function Ironman:OpenUI()
     local ironmanScore = IronmanModeDB.normalScore or 0
     local hardcoreScore = IronmanModeDB.hardcoreScore or 0
     
-    if IronmanModeDB.doHardcoreTurnedOff == true then
-      -- Show both scores if hardcore was turned off
+    if IronmanModeDB.doHardcoreTurnedOffOnStart == true then
+	  ironmanScoreValue:SetText(string.format("%d", ironmanScore))
+	  ironmanScoreValue:SetTextColor(1, 1, 1)
+	elseif IronmanModeDB.doHardcoreTurnedOff == true then
+      -- Show both scores if hardcore was turned off, but hardcore score is frozen
       ironmanScoreValue:SetText(string.format("%d", ironmanScore))
       ironmanScoreValue:SetTextColor(1, 1, 1) -- Orange tint
 	  hardcoreScoreValue:SetText(string.format("%d (Frozen)", hardcoreScore))
 	  hardcoreScoreValue:SetTextColor(1, 1, 0.5)
     else
-      -- Just show normal score
+	  -- Show only hardcore score if in hardcore mode
       ironmanScoreValue:SetText(tostring(ironmanScore))
       ironmanScoreValue:SetTextColor(1, 1, 1)
 	  hardcoreScoreValue:SetText(string.format("%d", hardcoreScore))
@@ -425,7 +428,7 @@ local function RefreshSettings()
   end
   
   -- Hide hardcore checkbox if it was previously turned off
-  if IronmanModeDB.doHardcoreTurnedOff then
+  if IronmanModeDB.doHardcoreTurnedOff or IronmanModeDB.doHardcoreTurnedOffOnStart then
     hardcoreCheckbox:Hide()
     hardcoreCheckbox.text:Hide()
   else
