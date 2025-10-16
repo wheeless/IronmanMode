@@ -5,7 +5,7 @@
 ## Version: 0.3
 ## SavedVariablesPerCharacter: IronmanModeDB
 ## IconTexture: Interface\AddOns\IronmanMode\Ironman_Mode_logo.png
-## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0, LibSHA2
+## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0, LibSHA1
 
 Core.lua
 Events.lua

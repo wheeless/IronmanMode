@@ -37,9 +37,9 @@ Ironman.defaults = {
 Ironman.lastKnownHash = nil
 
 function Ironman:GenerateHash()
-  local LibSHA2 = LibStub:GetLibrary("LibSHA2-1.0", true)
+  local LibSHA1 = LibStub:GetLibrary("LibSHA1-1.0", true)
   
-  if not LibSHA2 then
+  if not LibSHA1 then
     return Ironman:GenerateSimpleHash()
   end
   
@@ -56,9 +56,9 @@ function Ironman:GenerateHash()
   )
   
   -- Add salt for extra security
-  local salt = "IronmanMode_v0.3_SecretSalt"
+  local salt = "IronmanMode_Super_SecretSalt"
   
-  return LibSHA2:SHA256(str .. salt)
+  return LibSHA1:SHA256(str .. salt)
 end
 
 function Ironman:GenerateSimpleHash()
