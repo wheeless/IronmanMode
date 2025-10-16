@@ -33,6 +33,51 @@ Ironman.defaults = {
   },
 }
 
+-- In Core.lua - Add integrity checks
+Ironman.lastKnownHash = nil
+
+function Ironman:GenerateHash()
+  local LibSHA2 = LibStub:GetLibrary("LibSHA2-1.0", true)
+  
+  if not LibSHA2 then
+    return Ironman:GenerateSimpleHash()
+  end
+  
+  local str = string.format("%d|%d|%d|%s|%s|%d|%s|%s|%d",
+    IronmanModeDB.normalScore or 0,
+    IronmanModeDB.hardcoreScore or 0,
+    #(IronmanModeDB.violations or {}),
+    tostring(IronmanModeDB.hasBeenCleared),
+    tostring(IronmanModeDB.hasBeenTurnedOff),
+    UnitLevel("player"),
+    UnitName("player"),
+    GetRealmName(),
+    IronmanModeDB.sessionID or 0
+  )
+  
+  -- Add salt for extra security
+  local salt = "IronmanMode_v0.3_SecretSalt"
+  
+  return LibSHA2:SHA256(str .. salt)
+end
+
+function Ironman:GenerateSimpleHash()
+  local str = string.format("%d|%d|%d|%s|%s",
+    IronmanModeDB.normalScore or 0,
+    IronmanModeDB.hardcoreScore or 0,
+    #(IronmanModeDB.violations or {}),
+    tostring(IronmanModeDB.hasBeenCleared),
+    tostring(IronmanModeDB.hasBeenTurnedOff)
+  )
+  
+  local hash = 0
+  for i = 1, #str do
+    hash = (hash * 31 + string.byte(str, i)) % 2147483647
+  end
+  return hash
+end
+
+
 -- Initialize DB
 function Ironman:InitDB()
   if not IronmanModeDB then
@@ -61,19 +106,17 @@ function Ironman:InitDB()
   end
 end
 
--- Show first-time setup prompt
 function Ironman:ShowSetupPrompt()
-  -- Check level FIRST before creating anything
   local playerLevel = UnitLevel("player")
   if playerLevel and playerLevel > 1 and IronmanModeDB.firstLogin == true then
     print("|cffff0000[Ironman]|r Player level is greater than 1, cannot enable Ironman Mode!")
-    IronmanModeDB.firstLogin = false  -- Mark as no longer first login
-	IronmanModeDB.enabled = false
-	IronmanModeDB.hasBeenTurnedOff = true
-	IronmanModeDB.hasBeenCleared = true
-	IronmanModeDB.violations = {}
-	IronmanModeDB.disabledDueToEligibility = true
-    return  -- Exit completely, don't create popup
+    IronmanModeDB.firstLogin = false
+    IronmanModeDB.enabled = false
+    IronmanModeDB.hasBeenTurnedOff = true
+    IronmanModeDB.hasBeenCleared = true
+    IronmanModeDB.violations = {}
+    IronmanModeDB.disabledDueToEligibility = true
+    return
   end
 
   local popup = CreateFrame("Frame", "IronmanSetupPopup", UIParent, "BackdropTemplate")
@@ -97,17 +140,40 @@ function Ironman:ShowSetupPrompt()
   enableBtn:SetScript("OnClick", function()
     IronmanModeDB.enabled = true
     IronmanModeDB.firstLogin = false
-	if Ironman.EnableHardcoreMode then
-	  Ironman:EnableHardcoreMode()
-	end
     popup:Hide()
-    Ironman:OpenUI()
-    print("|cffff0000[Ironman]|r Mode enabled.")
-	C_Timer.After(0.1, function()
-    if Ironman.AddAchievement then
-      Ironman:AddAchievement("Ironman Mode", "Enabled Ironman Mode", 1)
-    end
-  end)
+
+    -- 🧭 Second confirmation for Hardcore mode
+    StaticPopupDialogs["IRONMAN_HARDCORE_CONFIRM"] = {
+      text = "Would you also like to enable Hardcore Mode?",
+      button1 = "Yes",
+      button2 = "No",
+      OnAccept = function()
+        Ironman:EnableHardcoreMode(true)
+        Ironman:OpenUI()
+        print("|cffff0000[Ironman]|r Ironman + Hardcore Mode enabled.")
+        C_Timer.After(0.1, function()
+          if Ironman.AddAchievement then
+            Ironman:AddAchievement("Ironman Mode", "Enabled Ironman + Hardcore Mode", 1)
+          end
+        end)
+      end,
+      OnCancel = function()
+        Ironman:EnableHardcoreMode(false)
+        Ironman:OpenUI()
+        print("|cffff0000[Ironman]|r Ironman Mode enabled (without Hardcore).")
+        C_Timer.After(0.1, function()
+          if Ironman.AddAchievement then
+            Ironman:AddAchievement("Ironman Mode", "Enabled Ironman Mode", 1)
+          end
+        end)
+      end,
+      timeout = 0,
+      whileDead = true,
+      hideOnEscape = true,
+      preferredIndex = 3,
+    }
+
+    StaticPopup_Show("IRONMAN_HARDCORE_CONFIRM")
   end)
 
   local disableBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
@@ -122,51 +188,20 @@ function Ironman:ShowSetupPrompt()
   end)
 end
 
-function Ironman:EnableHardcoreMode()
-  if IronmanModeDB.enabled and not IronmanModeDB.doHardcore then
-	IronmanModeDB.doHardcore = true
-	print("|cffff0000[Ironman]|r Hardcore mode enabled. Death will disable Ironman Mode!")
-  end
 
-    local popup = CreateFrame("Frame", "IronmanSetupPopup", UIParent, "BackdropTemplate")
-  popup:SetSize(320, 140)
-  popup:SetPoint("CENTER")
-  popup:SetBackdrop({
-    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-    tile = true, tileSize = 32, edgeSize = 32,
-    insets = { left = 11, right = 12, top = 12, bottom = 11 }
-  })
-
-  local text = popup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-  text:SetPoint("TOP", 0, -25)
-  text:SetText("Enable Hardcore Ironman Mode for this character?")
-
-  local enableBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
-  enableBtn:SetSize(100, 24)
-  enableBtn:SetPoint("BOTTOMLEFT", 40, 20)
-  enableBtn:SetText("Enable")
-  enableBtn:SetScript("OnClick", function()
-    IronmanModeDB.doHardcore = true
-    IronmanModeDB.firstLogin = false
-    popup:Hide()
-    Ironman:OpenUI()
-    print("|cffff0000[Ironman]|r Mode enabled.")
-	C_Timer.After(0.1, function()
-    if Ironman.AddAchievement then
-      Ironman:AddAchievement("Ironman Mode", "Enabled Hardcore Ironman Mode", 1)
+function Ironman:EnableHardcoreMode(enable)
+  -- Only toggle, no UI
+  if enable then
+    if not IronmanModeDB.doHardcore then
+      IronmanModeDB.doHardcore = true
+      print("|cffff0000[Ironman]|r Hardcore mode enabled. Death will disable Ironman Mode!")
+      return true
     end
-  end)
-  end)
-
-  local disableBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
-  disableBtn:SetSize(100, 24)
-  disableBtn:SetPoint("BOTTOMRIGHT", -40, 20)
-  disableBtn:SetText("Disable")
-  disableBtn:SetScript("OnClick", function()
-    IronmanModeDB.doHardcore = false
-    IronmanModeDB.doHardcoreTurnedOffOnStart = false
-    popup:Hide()
-    print("|cffff0000[Ironman]|r Mode disabled for this character.")
-  end)
+  else
+    if IronmanModeDB.doHardcore then
+      IronmanModeDB.doHardcore = false
+      print("|cffff0000[Ironman]|r Hardcore mode disabled.")
+      return false
+    end
+  end
 end

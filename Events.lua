@@ -60,6 +60,9 @@ end
 
 -- Event handler
 f:SetScript("OnEvent", function(self, event, ...)
+
+	-- Generate a unique session ID on login
+  local sessionID = tostring(time()) .. tostring(math.random(1000000))
   -- Handle PLAYER_LOGIN first (before checking if enabled)
   if event == "PLAYER_LOGIN" then
     Ironman:InitDB()
@@ -68,6 +71,15 @@ f:SetScript("OnEvent", function(self, event, ...)
     elseif IronmanModeDB.enabled then
       Print("Welcome back, fearless ironman!")
     end
+
+	local currentHash = Ironman:GenerateHash()
+  		if IronmanModeDB.integrityHash and currentHash ~= IronmanModeDB.integrityHash then
+    	-- Data was tampered with!
+    	IronmanModeDB.tamperedWith = true
+    	Print("Data integrity check failed. Leaderboard submission disabled.")
+  	end
+  
+  	IronmanModeDB.integrityHash = currentHash
     return
   end
   

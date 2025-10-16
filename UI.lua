@@ -458,8 +458,6 @@ hardcoreCheckbox:SetScript("OnClick", function(self)
   if isChecked then
     -- Turning hardcore ON
     IronmanModeDB.doHardcore = true
-	
-    print("|cffff0000[Ironman]|r Hardcore mode enabled. Death will disable Ironman Mode!")
   else
     -- Turning hardcore OFF - show confirmation
     if IronmanModeDB.doHardcore then
