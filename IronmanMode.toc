@@ -1,4 +1,4 @@
-## Interface: 100207
+## Interface: 110205
 ## Title: Ironman Mode
 ## Notes: Self-sufficient challenge mode inspired by RuneScape Ironman.
 ## Author: Avernix Technologies
