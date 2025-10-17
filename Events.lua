@@ -83,59 +83,106 @@ f:SetScript("OnEvent", function(self, event, ...)
     return
   end
   
-  -- Handle addon messages
-  if event == "CHAT_MSG_ADDON" then
-    local prefix, message, channel, sender = ...
-    if prefix == "IronmanMode" then
-      if message == "PING" then
-        -- Someone is checking if we're using Ironman
-        C_ChatInfo.SendAddonMessage("IronmanMode", "PONG", "PARTY")
-      elseif message == "PONG" then
-        -- Someone confirmed they're using Ironman
-        partyIronmanUsers[sender] = true
-      end
-    end
+-- Track last ping time to avoid spam
+local lastPingTime = 0
+
+local function PingParty()
+  local currentTime = GetTime()
+  
+  -- Don't spam pings (at most once per 3 seconds)
+  if currentTime - lastPingTime < 3 then
     return
   end
   
-  -- Handle party roster changes
-  if event == "GROUP_ROSTER_UPDATE" then
-    -- Clear the list
-    partyIronmanUsers = {}
-    
-    -- If in a party, ping everyone
-    if GetNumGroupMembers() > 0 then
-      PingParty()
-      -- Give 1 second for responses
-      C_Timer.After(1, function()
-        if IronmanModeDB and IronmanModeDB.enabled and IronmanModeDB.rules.noParty then
-          if not IsIronmanParty() then
-            -- Not all party members are Ironman users
-            StaticPopupDialogs["IRONMAN_PARTY_CONFIRM"] = {
-              text = "Joining a party with non-Ironman players will violate Iron Man rules. Leave party?",
-              button1 = "Yes",
-              button2 = "No",
-              OnAccept = function()
-                LeaveParty()
-                Print("Left party to maintain Iron Man status.")
-              end,
-              OnCancel = function()
-                DisableRule("noParty", "You joined a party with non-Ironman players. You have lost 10% validity.")
-              end,
-              timeout = 0,
-              whileDead = true,
-              hideOnEscape = true,
-            }
-            StaticPopup_Show("IRONMAN_PARTY_CONFIRM")
-          else
-            -- All party members are Ironman users!
-            Print("Party allowed - all members are Ironman players!")
-          end
-        end
-      end)
-    end
-    return
+  if GetNumGroupMembers() > 0 then
+    print("DEBUG: Sending PING to party") -- DEBUG
+    C_ChatInfo.SendAddonMessage("IronmanMode", "PING", "PARTY")
+    lastPingTime = currentTime
   end
+end
+
+-- Handle addon messages
+if event == "CHAT_MSG_ADDON" then
+  local prefix, message, channel, sender = ...
+  if prefix == "IronmanMode" then
+    if message == "PING" then
+      print("DEBUG: Received PING from " .. sender) -- DEBUG
+      -- Someone is checking if we're using Ironman - respond immediately
+      C_ChatInfo.SendAddonMessage("IronmanMode", "PONG", "PARTY")
+      
+      -- Also ping back to verify mutual detection
+      C_Timer.After(0.5, function()
+        PingParty()
+      end)
+      
+    elseif message == "PONG" then
+      print("DEBUG: Received PONG from " .. sender) -- DEBUG
+      -- Someone confirmed they're using Ironman
+      partyIronmanUsers[sender] = true
+    end
+  end
+  return
+end
+
+-- Handle party roster changes
+if event == "GROUP_ROSTER_UPDATE" then
+  print("DEBUG: GROUP_ROSTER_UPDATE fired, members: " .. GetNumGroupMembers()) -- DEBUG
+  
+  if GetNumGroupMembers() > 0 then
+    -- In a party - ping immediately
+    PingParty()
+    
+    -- Wait for responses and check
+    C_Timer.After(3, function()
+      if not IronmanModeDB or not IronmanModeDB.enabled or not IronmanModeDB.rules.noParty then
+        return
+      end
+      
+      local numMembers = GetNumGroupMembers()
+      if numMembers == 0 then
+        -- Already left party
+        return
+      end
+      
+      local otherMembers = numMembers - 1
+      local ironmanCount = 0
+      
+      for name, _ in pairs(partyIronmanUsers) do
+        ironmanCount = ironmanCount + 1
+        print("DEBUG: Ironman member: " .. name) -- DEBUG
+      end
+      
+      print("DEBUG: " .. ironmanCount .. " Ironman out of " .. otherMembers .. " others") -- DEBUG
+      
+      if ironmanCount < otherMembers then
+        -- Not all are Ironman users
+        StaticPopupDialogs["IRONMAN_PARTY_CONFIRM"] = {
+          text = string.format("Only %d/%d party members use Ironman Mode. Leave party?", ironmanCount, otherMembers),
+          button1 = "Yes",
+          button2 = "No",
+          OnAccept = function()
+            LeaveParty()
+            Print("Left party to maintain Iron Man status.")
+          end,
+          OnCancel = function()
+            DisableRule("noParty", "You joined a party with non-Ironman players.")
+          end,
+          timeout = 0,
+          whileDead = true,
+          hideOnEscape = true,
+        }
+        StaticPopup_Show("IRONMAN_PARTY_CONFIRM")
+      else
+        Print("Party allowed - all members are Ironman players!")
+      end
+    end)
+  else
+    -- Left party - clear tracking
+    partyIronmanUsers = {}
+    print("DEBUG: Left party, cleared list") -- DEBUG
+  end
+  return
+end
   
   -- For all other events, check if addon is enabled
   if not IronmanModeDB or not IronmanModeDB.enabled then return end

@@ -150,7 +150,7 @@ function Ironman:ShowSetupPrompt()
       OnAccept = function()
         Ironman:EnableHardcoreMode(true)
         Ironman:OpenUI()
-        print("|cffff0000[Ironman]|r Ironman + Hardcore Mode enabled.")
+        print("|cffff0000[Ironman]|r Hardcore mode enabled. Death will disable Ironman Mode!")
         C_Timer.After(0.1, function()
           if Ironman.AddAchievement then
             Ironman:AddAchievement("Ironman Mode", "Enabled Ironman + Hardcore Mode", 1)
