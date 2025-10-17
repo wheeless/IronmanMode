@@ -95,7 +95,6 @@ local function PingParty()
   end
   
   if GetNumGroupMembers() > 0 then
-    print("DEBUG: Sending PING to party") -- DEBUG
     C_ChatInfo.SendAddonMessage("IronmanMode", "PING", "PARTY")
     lastPingTime = currentTime
   end
@@ -106,7 +105,6 @@ if event == "CHAT_MSG_ADDON" then
   local prefix, message, channel, sender = ...
   if prefix == "IronmanMode" then
     if message == "PING" then
-      print("DEBUG: Received PING from " .. sender) -- DEBUG
       -- Someone is checking if we're using Ironman - respond immediately
       C_ChatInfo.SendAddonMessage("IronmanMode", "PONG", "PARTY")
       
@@ -116,7 +114,6 @@ if event == "CHAT_MSG_ADDON" then
       end)
       
     elseif message == "PONG" then
-      print("DEBUG: Received PONG from " .. sender) -- DEBUG
       -- Someone confirmed they're using Ironman
       partyIronmanUsers[sender] = true
     end
@@ -126,7 +123,6 @@ end
 
 -- Handle party roster changes
 if event == "GROUP_ROSTER_UPDATE" then
-  print("DEBUG: GROUP_ROSTER_UPDATE fired, members: " .. GetNumGroupMembers()) -- DEBUG
   
   if GetNumGroupMembers() > 0 then
     -- In a party - ping immediately
@@ -149,10 +145,8 @@ if event == "GROUP_ROSTER_UPDATE" then
       
       for name, _ in pairs(partyIronmanUsers) do
         ironmanCount = ironmanCount + 1
-        print("DEBUG: Ironman member: " .. name) -- DEBUG
       end
       
-      print("DEBUG: " .. ironmanCount .. " Ironman out of " .. otherMembers .. " others") -- DEBUG
       
       if ironmanCount < otherMembers then
         -- Not all are Ironman users
@@ -179,7 +173,6 @@ if event == "GROUP_ROSTER_UPDATE" then
   else
     -- Left party - clear tracking
     partyIronmanUsers = {}
-    print("DEBUG: Left party, cleared list") -- DEBUG
   end
   return
 end
