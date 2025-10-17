@@ -26,6 +26,8 @@ function Ironman:OpenUI()
   local frame = CreateFrame("Frame", "IronmanUIFrame", UIParent, "BasicFrameTemplateWithInset")
   frame:SetSize(400, 440)
   frame:SetPoint("CENTER")
+  frame:SetFrameStrata("FULLSCREEN_DIALOG")  -- Highest non-tooltip layer
+  frame:SetFrameLevel(1000)  -- Very high within that strata
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton")
@@ -394,6 +396,14 @@ local settingsPanel = CreateFrame("Frame", nil, frame)
 settingsPanel:SetSize(360, 360)
 settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
 settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
+
+-- Version display (bottom left, opposite of close button)
+local versionText = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+versionText:SetPoint("BOTTOMLEFT", 20, 15)
+local addonVersion = GetAddOnMetadata("IronmanMode", "Version") or "Unknown"
+local addonAuthor = GetAddOnMetadata("IronmanMode", "Author") or "Unknown"
+versionText:SetText(string.format("v%s by %s", addonVersion, addonAuthor))
+versionText:SetTextColor(0.7, 0.7, 0.7, 1) -- Gray color
 
 local settingsY = -110
 local settingsSpacing = -35
