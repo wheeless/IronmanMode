@@ -49,17 +49,19 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, loadedAddon)
   if loadedAddon == "IronmanMode" then
     InitMinimapDB()
-    
+
     -- Register the icon with saved position
-    icon:Register(addonName, LDB, IronmanModeDB.minimap)
-    
-    -- Show or hide based on saved preference
-    if IronmanModeDB.minimap.hide then
-      icon:Hide(addonName)
-    else
-      icon:Show(addonName)
+    if icon and LDB then
+      icon:Register(addonName, LDB, IronmanModeDB.minimap)
+
+      -- Show or hide based on saved preference
+      if IronmanModeDB.minimap.hide then
+        icon:Hide(addonName)
+      else
+        icon:Show(addonName)
+      end
     end
-    
+
     self:UnregisterEvent("ADDON_LOADED")
   end
 end)
@@ -87,10 +89,14 @@ minimapCheckbox:SetScript("OnShow", function(self)
 end)
 minimapCheckbox:SetScript("OnClick", function(self)
   IronmanModeDB.minimap.hide = not self:GetChecked()
-  if IronmanModeDB.minimap.hide then
-    icon:Hide(addonName)
-  else
-    icon:Show(addonName)
+  if icon then
+    if IronmanModeDB.minimap.hide then
+      icon:Hide(addonName)
+      print("|cffff0000[Ironman]|r Minimap icon hidden.")
+    else
+      icon:Show(addonName)
+      print("|cffff0000[Ironman]|r Minimap icon shown.")
+    end
   end
 end)
 
@@ -99,7 +105,8 @@ logo:SetSize(64, 64)
 logo:SetPoint("TOPRIGHT", -16, -16)
 logo:SetTexture("Interface\\AddOns\\IronmanMode\\Ironman_Mode_logo.png")
 
-InterfaceOptions_AddCategory(panel)
+-- Note: InterfaceOptions_AddCategory was removed in newer WoW versions
+-- Settings can be accessed via /ironman command instead
 
 -- Slash command to show minimap icon (must be at the very end)
 SLASH_IRONMANICON1 = "/ironmanicon"

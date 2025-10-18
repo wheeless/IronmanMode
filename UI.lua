@@ -180,59 +180,39 @@ function Ironman:OpenUI()
     local hasBeenCleared = IronmanModeDB.hasBeenCleared or false
     local violations = IronmanModeDB.violations or {}
     local violationCount = #violations
-    
-    -- Calculate rule statistics (needed for both validity and score)
-    local rules = IronmanModeDB.rules or {}
-    local totalRules = 0
-    local enabledRules = 0
-    
-    for ruleKey, enabled in pairs(rules) do
-      totalRules = totalRules + 1
-      if enabled then
-        enabledRules = enabledRules + 1
-      end
-    end
-    
-    -- Calculate validity
-    local validity = 0
+
+    -- Calculate validity using the centralized method
+    local validity = Ironman:CalculateValidity()
+
+    -- Determine validity text and color
     local validityColor = {1, 0, 0}
     local validityText = "Invalid"
-    
+
     if hasBeenCleared or hasBeenTurnedOff then
-      validity = 0
       validityText = "Invalid (Flagged)"
+      validityColor = {1, 0, 0}
+    elseif validity >= 90 then
+      validityText = string.format("Excellent (%.2f)", validity)
+      validityColor = {0, 1, 0}
+    elseif validity >= 70 then
+      validityText = string.format("Good (%.2f)", validity)
+      validityColor = {0.5, 1, 0}
+    elseif validity >= 50 then
+      validityText = string.format("Fair (%.2f)", validity)
+      validityColor = {1, 1, 0}
+    elseif validity >= 25 then
+      validityText = string.format("Poor (%.2f)", validity)
+      validityColor = {1, 0.5, 0}
+    elseif validity > 0 then
+      validityText = string.format("Very Poor (%.2f)", validity)
+      validityColor = {1, 0, 0}
     else
-      validity = 100
-      validity = validity - ((totalRules - enabledRules) * 10)
-      
-      if violationCount > 0 and validity > 0 then
-        local penaltyPerViolation = 100 / 120
-        local totalPenalty = penaltyPerViolation * violationCount
-        validity = math.max(0, validity - totalPenalty)
-      end
-      
-      validity = math.floor(validity * 100 + 0.5) / 100
-      
-      if validity >= 90 then
-        validityText = string.format("Excellent (%.2f)", validity)
-        validityColor = {0, 1, 0}
-      elseif validity >= 70 then
-        validityText = string.format("Good (%.2f)", validity)
-        validityColor = {0.5, 1, 0}
-      elseif validity >= 50 then
-        validityText = string.format("Fair (%.2f)", validity)
-        validityColor = {1, 1, 0}
-      elseif validity >= 25 then
-        validityText = string.format("Poor (%.2f)", validity)
-        validityColor = {1, 0.5, 0}
-      elseif validity > 0 then
-        validityText = string.format("Very Poor (%.2f)", validity)
-        validityColor = {1, 0, 0}
-      else
-        validityText = "Invalid (0.00)"
-        validityColor = {1, 0, 0}
-      end
+      validityText = "Invalid (0.00)"
+      validityColor = {1, 0, 0}
     end
+
+    -- Save validity to database
+    IronmanModeDB.validity = validity
     
     turnedOffValue:SetText(hasBeenTurnedOff and "Yes" or "No")
     turnedOffValue:SetTextColor(hasBeenTurnedOff and 1 or 0, hasBeenTurnedOff and 0 or 1, 0)
@@ -279,31 +259,39 @@ function Ironman:OpenUI()
   -- Temporary storage for rule changes
   local tempRules = {}
 
+  -- Forward declare RefreshRules so it can be used by both OK button and ShowTab
+  local RefreshRules
+
   local function CreateCheckbox(parent, label, ruleKey, offsetY)
-    if not IronmanModeDB.rules[ruleKey] then
+    local rule = IronmanModeDB.rules[ruleKey]
+    if not rule then
       return nil
     end
+
     local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
     cb:SetPoint("TOPLEFT", 20, offsetY)
-    
+
     cb.text = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     cb.text:SetPoint("LEFT", cb, "RIGHT", 5, 0)
     cb.text:SetText(label)
-    
+
     cb.ruleKey = ruleKey
-    
-    if IronmanModeDB and IronmanModeDB.rules then
-      cb:SetChecked(IronmanModeDB.rules[ruleKey])
-      tempRules[ruleKey] = IronmanModeDB.rules[ruleKey]
+
+    -- Handle both old boolean format and new object format
+    local isEnabled = false
+    if type(rule) == "table" then
+      isEnabled = rule.enabled
     else
-      cb:SetChecked(false)
-      tempRules[ruleKey] = false
+      isEnabled = rule
     end
-    
+
+    cb:SetChecked(isEnabled)
+    tempRules[ruleKey] = isEnabled
+
     cb:SetScript("OnClick", function(self)
       tempRules[ruleKey] = self:GetChecked()
     end)
-    
+
     return cb
   end
 
@@ -329,6 +317,45 @@ function Ironman:OpenUI()
   end
   rulesPanel.checks.noAH = CreateCheckbox(rulesPanel, "No Auction House", "noAH", y)
 
+  -- Define RefreshRules function before OK button uses it
+  RefreshRules = function()
+    for _, cb in pairs(rulesPanel.checks) do
+      if cb and IronmanModeDB and IronmanModeDB.rules and cb.ruleKey then
+        local rule = IronmanModeDB.rules[cb.ruleKey]
+        local isEnabled = false
+        if type(rule) == "table" then
+          isEnabled = rule.enabled
+        else
+          isEnabled = rule
+        end
+        cb:SetChecked(isEnabled)
+        tempRules[cb.ruleKey] = isEnabled
+
+        -- Disable checkbox and mark with red text if rule is disabled
+        if not isEnabled then
+          cb:Disable()
+          -- Get the original label text and add DISABLED tag in red
+          local ruleName = ""
+          if type(rule) == "table" and rule.name then
+            ruleName = rule.name
+          else
+            ruleName = cb.text:GetText():gsub(" %[DISABLED%]", "") -- Remove existing tag
+          end
+          cb.text:SetText(ruleName .. " |cffff0000[DISABLED]|r")
+        else
+          -- Make sure text is normal color if enabled
+          local ruleName = ""
+          if type(rule) == "table" and rule.name then
+            ruleName = rule.name
+          else
+            ruleName = cb.text:GetText():gsub(" %[DISABLED%]", "")
+          end
+          cb.text:SetText(ruleName)
+        end
+      end
+    end
+  end
+
   -- OK Button
   local okBtn = CreateFrame("Button", nil, rulesPanel, "UIPanelButtonTemplate")
   okBtn:SetSize(100, 24)
@@ -336,22 +363,25 @@ function Ironman:OpenUI()
   okBtn:SetText("OK")
   okBtn:SetScript("OnClick", function()
     for ruleKey, value in pairs(tempRules) do
-      IronmanModeDB.rules[ruleKey] = value
+      local rule = IronmanModeDB.rules[ruleKey]
+      if type(rule) == "table" then
+        IronmanModeDB.rules[ruleKey].enabled = value
+      else
+        IronmanModeDB.rules[ruleKey] = value
+      end
     end
-    print("|cffff0000[Ironman]|r Rules saved.")
+    -- Recalculate validity after rule changes
+    IronmanModeDB.validity = Ironman:CalculateValidity()
+    print("|cffff0000[Ironman]|r Rules saved. Validity: " .. string.format("%.2f%%", IronmanModeDB.validity))
+
+    -- Refresh rules to update checkbox states and disable unchecked ones
+    RefreshRules()
+
+    -- Refresh both status and rules displays
     if Ironman.RefreshStatus then
       Ironman:RefreshStatus()
     end
   end)
-
-  local function RefreshRules()
-    for _, cb in pairs(rulesPanel.checks) do
-      if cb and IronmanModeDB and IronmanModeDB.rules and cb.ruleKey then
-        cb:SetChecked(IronmanModeDB.rules[cb.ruleKey])
-        tempRules[cb.ruleKey] = IronmanModeDB.rules[cb.ruleKey]
-      end
-    end
-  end
 
   -------------------------------------------------
   -- Achievements Tab

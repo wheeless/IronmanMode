@@ -22,10 +22,33 @@ local function AddViolation(rule, detail)
   Print("Rule violated: " .. rule)
 end
 
+-- Check if a rule is enabled
+local function IsRuleEnabled(ruleKey)
+  local rule = IronmanModeDB.rules[ruleKey]
+  if not rule then return false end
+
+  -- Handle both old boolean format and new object format
+  if type(rule) == "table" then
+    return rule.enabled
+  else
+    return rule
+  end
+end
+
 -- Disable a rule, with optional message
 local function DisableRule(rule, message)
-  if IronmanModeDB.rules[rule] then
-    IronmanModeDB.rules[rule] = false
+  local ruleObj = IronmanModeDB.rules[rule]
+  if ruleObj then
+    -- Handle both old boolean format and new object format
+    if type(ruleObj) == "table" then
+      IronmanModeDB.rules[rule].enabled = false
+    else
+      IronmanModeDB.rules[rule] = false
+    end
+
+    -- Recalculate validity after disabling rule
+    IronmanModeDB.validity = Ironman:CalculateValidity()
+
     if message then
       Print(message)
     end
@@ -130,7 +153,7 @@ if event == "GROUP_ROSTER_UPDATE" then
     
     -- Wait for responses and check
     C_Timer.After(3, function()
-      if not IronmanModeDB or not IronmanModeDB.enabled or not IronmanModeDB.rules.noParty then
+      if not IronmanModeDB or not IronmanModeDB.enabled or not IsRuleEnabled("noParty") then
         return
       end
       
@@ -166,6 +189,7 @@ if event == "GROUP_ROSTER_UPDATE" then
           hideOnEscape = true,
         }
         StaticPopup_Show("IRONMAN_PARTY_CONFIRM")
+      end
     end)
   else
     -- Left party - clear tracking
@@ -176,9 +200,8 @@ end
   
   -- For all other events, check if addon is enabled
   if not IronmanModeDB or not IronmanModeDB.enabled then return end
-  local rules = IronmanModeDB.rules
-  
-  if event == "TRADE_SHOW" and rules.noTrade then
+
+  if event == "TRADE_SHOW" and IsRuleEnabled("noTrade") then
     CancelTrade()
     StaticPopupDialogs["IRONMAN_TRADE_CONFIRM"] = {
       text = "Trading will violate Iron Man rules. Proceed anyway?",
@@ -193,7 +216,7 @@ end
     }
     StaticPopup_Show("IRONMAN_TRADE_CONFIRM")
     
-  elseif event == "GUILD_ROSTER_UPDATE" and rules.noGuild then
+  elseif event == "GUILD_ROSTER_UPDATE" and IsRuleEnabled("noGuild") then
     if IsInGuild() then
       StaticPopupDialogs["IRONMAN_GUILD_CONFIRM"] = {
         text = "Being in a guild violates Iron Man rules. Leave guild?",
@@ -213,7 +236,7 @@ end
       StaticPopup_Show("IRONMAN_GUILD_CONFIRM")
     end
     
-  elseif event == "MAIL_SHOW" and rules.noMail then 
+  elseif event == "MAIL_SHOW" and IsRuleEnabled("noMail") then 
     CloseMail()
     StaticPopupDialogs["OPEN_MAIL_CONFIRM"] = {
       text = "You will lose 30 percent validity for opening your mailbox. Are you sure?",
@@ -233,7 +256,7 @@ end
   	IronmanModeDB.doHardcoreTurnedOff = true
   	Print("You have died. You have lost your Hardcore Ironman status.")
     
-  elseif event == "AUCTION_HOUSE_SHOW" and rules.noAH then
+  elseif event == "AUCTION_HOUSE_SHOW" and IsRuleEnabled("noAH") then
     CloseAuctionHouse()
     StaticPopupDialogs["IRONMAN_AH_CONFIRM"] = {
       text = "Using the Auction House will violate Iron Man rules. Proceed anyway?",
