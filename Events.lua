@@ -166,9 +166,6 @@ if event == "GROUP_ROSTER_UPDATE" then
           hideOnEscape = true,
         }
         StaticPopup_Show("IRONMAN_PARTY_CONFIRM")
-      else
-        Print("Party allowed - all members are Ironman players!")
-      end
     end)
   else
     -- Left party - clear tracking

@@ -24,7 +24,7 @@ function Ironman:OpenUI()
   -------------------------------------------------
 
   local frame = CreateFrame("Frame", "IronmanUIFrame", UIParent, "BasicFrameTemplateWithInset")
-  frame:SetSize(400, 440)
+  frame:SetSize(550, 480)
   frame:SetPoint("CENTER")
   frame:SetFrameStrata("FULLSCREEN_DIALOG")  -- Highest non-tooltip layer
   frame:SetFrameLevel(1000)  -- Very high within that strata
@@ -70,19 +70,21 @@ function Ironman:OpenUI()
 
   tabs[1] = CreateTab(1, "Status", "status")
   tabs[2] = CreateTab(2, "Rules", "rules")
-  tabs[3] = CreateTab(3, "Violations", "violations")
-  tabs[4] = CreateTab(4, "Settings", "settings")
+  tabs[3] = CreateTab(3, "Achievements", "achievements")
+  tabs[4] = CreateTab(4, "Violations", "violations")
+  tabs[5] = CreateTab(5, "Settings", "settings")
 
   tabs[1]:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 5, 7)
   tabs[2]:SetPoint("LEFT", tabs[1], "RIGHT", -15, 0)
   tabs[3]:SetPoint("LEFT", tabs[2], "RIGHT", -15, 0)
   tabs[4]:SetPoint("LEFT", tabs[3], "RIGHT", -15, 0)
+  tabs[5]:SetPoint("LEFT", tabs[4], "RIGHT", -15, 0)
 
   -------------------------------------------------
   -- Status Tab
   -------------------------------------------------
   local statusPanel = CreateFrame("Frame", nil, frame)
-  statusPanel:SetSize(360, 360)
+  statusPanel:SetSize(510, 400)
   statusPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   statusPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
@@ -241,7 +243,7 @@ function Ironman:OpenUI()
   -- Rules Tab
   -------------------------------------------------
   local rulesPanel = CreateFrame("Frame", nil, frame)
-  rulesPanel:SetSize(360, 360)
+  rulesPanel:SetSize(510, 400)
   rulesPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   rulesPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
@@ -323,19 +325,96 @@ function Ironman:OpenUI()
   end
 
   -------------------------------------------------
+  -- Achievements Tab
+  -------------------------------------------------
+  local achievementsPanel = CreateFrame("Frame", nil, frame)
+  achievementsPanel:SetSize(510, 400)
+  achievementsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
+  achievementsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
+
+  local achieveScrollFrame = CreateFrame("ScrollFrame", "IronmanAchievementsScroll", achievementsPanel, "UIPanelScrollFrameTemplate")
+  achieveScrollFrame:SetSize(490, 290)
+  achieveScrollFrame:SetPoint("TOPLEFT", 20, -110)
+
+  local achieveContent = CreateFrame("Frame", nil, achieveScrollFrame)
+  achieveContent:SetSize(470, 1)
+  achieveScrollFrame:SetScrollChild(achieveContent)
+
+  local achieveFontStrings = {}
+
+  local function RefreshAchievements()
+    for _, fs in ipairs(achieveFontStrings) do
+      fs:Hide()
+    end
+
+    local data = IronmanModeDB.achievements or {}
+    local yOff = -5
+
+    if #data == 0 then
+      if not achieveFontStrings[1] then
+        achieveFontStrings[1] = achieveContent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+      end
+      achieveFontStrings[1]:SetPoint("TOPLEFT", 0, yOff)
+      achieveFontStrings[1]:SetText("No achievements earned yet. Get out there!")
+      achieveFontStrings[1]:Show()
+      achieveContent:SetHeight(20)
+      return
+    end
+
+    -- Sort by time (most recent first)
+    local sortedData = {}
+    for i, entry in ipairs(data) do
+      sortedData[i] = entry
+    end
+    table.sort(sortedData, function(a, b)
+      return (a.time or 0) > (b.time or 0)
+    end)
+
+    for i, entry in ipairs(sortedData) do
+      if not achieveFontStrings[i] then
+        achieveFontStrings[i] = achieveContent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+      end
+      local fs = achieveFontStrings[i]
+      fs:ClearAllPoints()
+      fs:SetPoint("TOPLEFT", 0, yOff)
+
+      -- Format: [Category] Description (+Points) - Level X @ Zone
+      local text = string.format("|cff00ff00[%s]|r %s |cffffd700(+%d)|r",
+        entry.category or "Unknown",
+        entry.description or "Achievement",
+        entry.points or 0)
+
+      if entry.level then
+        text = text .. string.format(" - Lvl %d", entry.level)
+      end
+      if entry.zone and entry.zone ~= "" then
+        text = text .. string.format(" @ %s", entry.zone)
+      end
+
+      fs:SetText(text)
+      fs:SetJustifyH("LEFT")
+      fs:SetWidth(470)
+      fs:Show()
+      yOff = yOff - 20
+    end
+
+    achieveContent:SetHeight(math.max(1, math.abs(yOff)))
+  end
+
+  -------------------------------------------------
   -- Violations Tab
   -------------------------------------------------
   local violationsPanel = CreateFrame("Frame", nil, frame)
-  violationsPanel:SetSize(360, 360)
+  violationsPanel:SetSize(510, 400)
   violationsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   violationsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
   local scrollFrame = CreateFrame("ScrollFrame", "IronmanViolationsScroll", violationsPanel, "UIPanelScrollFrameTemplate")
-  scrollFrame:SetSize(360, 250)
+  scrollFrame:SetSize(490, 290)
   scrollFrame:SetPoint("TOPLEFT", 20, -110)
 
   local content = CreateFrame("Frame", nil, scrollFrame)
-  content:SetSize(340, 1)
+  content:SetSize(470, 1)
   scrollFrame:SetScrollChild(content)
 
   local fontStrings = {}
@@ -368,9 +447,9 @@ function Ironman:OpenUI()
       fs:SetPoint("TOPLEFT", 0, yOff)
       fs:SetText(string.format("[%s] %s - %s", entry.time, entry.rule, entry.detail))
       fs:SetJustifyH("LEFT")
-      fs:SetWidth(340)
+      fs:SetWidth(470)
       fs:Show()
-      yOff = yOff - 18
+      yOff = yOff - 20
     end
 
     content:SetHeight(math.max(1, math.abs(yOff)))
@@ -393,17 +472,17 @@ function Ironman:OpenUI()
 -- Settings Tab
 -------------------------------------------------
 local settingsPanel = CreateFrame("Frame", nil, frame)
-settingsPanel:SetSize(360, 360)
+settingsPanel:SetSize(510, 400)
 settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
 settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
--- Version display (bottom left, opposite of close button)
-local versionText = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-versionText:SetPoint("BOTTOMLEFT", 20, 15)
-local addonVersion = GetAddOnMetadata("IronmanMode", "Version") or "Unknown"
-local addonAuthor = GetAddOnMetadata("IronmanMode", "Author") or "Unknown"
-versionText:SetText(string.format("v%s by %s", addonVersion, addonAuthor))
-versionText:SetTextColor(0.7, 0.7, 0.7, 1) -- Gray color
+-- -- Version display (bottom left, opposite of close button)
+-- local versionText = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+-- versionText:SetPoint("BOTTOMLEFT", 20, 15)
+-- local addonVersion = GetAddOnMetadata("IronmanMode", "Version") or "Unknown"
+-- local addonAuthor = GetAddOnMetadata("IronmanMode", "Author") or "Unknown"
+-- versionText:SetText(string.format("v%s by %s", addonVersion, addonAuthor))
+-- versionText:SetTextColor(0.7, 0.7, 0.7, 1) -- Gray color
 
 local settingsY = -110
 local settingsSpacing = -35
@@ -509,15 +588,19 @@ end)
   function Ironman:ShowTab(tab)
     statusPanel:Hide()
     rulesPanel:Hide()
+    achievementsPanel:Hide()
     violationsPanel:Hide()
     settingsPanel:Hide()
-    
+
     if tab == "status" then
       statusPanel:Show()
       RefreshStatus()
     elseif tab == "rules" then
       rulesPanel:Show()
       RefreshRules()
+    elseif tab == "achievements" then
+      achievementsPanel:Show()
+      RefreshAchievements()
     elseif tab == "violations" then
       violationsPanel:Show()
       RefreshViolations()
@@ -536,6 +619,7 @@ end)
 
   statusPanel:Show()
   rulesPanel:Hide()
+  achievementsPanel:Hide()
   violationsPanel:Hide()
   settingsPanel:Hide()
   RefreshStatus()
