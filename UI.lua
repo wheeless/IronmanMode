@@ -24,7 +24,7 @@ function Ironman:OpenUI()
   -------------------------------------------------
 
   local frame = CreateFrame("Frame", "IronmanUIFrame", UIParent, "BasicFrameTemplateWithInset")
-  frame:SetSize(550, 480)
+  frame:SetSize(650, 520)
   frame:SetPoint("CENTER")
   frame:SetFrameStrata("FULLSCREEN_DIALOG")  -- Highest non-tooltip layer
   frame:SetFrameLevel(1000)  -- Very high within that strata
@@ -56,16 +56,45 @@ function Ironman:OpenUI()
   -- Tabs
   -------------------------------------------------
   local tabs = {}
+  local selectedTab = nil
+
   local function CreateTab(id, text, tabKey)
-    local tab = CreateFrame("Button", "IronmanTab"..id, frame, "UIPanelButtonTemplate")
+    local tab = CreateFrame("Button", "IronmanTab"..id, frame, "PanelTabButtonTemplate")
     tab:SetID(id)
-    tab:SetText(text)
-    tab:SetSize(100, 24)
     tab.tabKey = tabKey
+
+    -- Get font string before setting text
+    local fontString = tab:GetFontString()
+
+    -- Set text
+    tab:SetText(text)
+
+    -- Measure text width and set tab width accordingly
+    if fontString then
+      local textWidth = fontString:GetStringWidth()
+      local padding = 54  -- Standard padding for PanelTabButtonTemplate
+      tab:SetWidth(textWidth + padding)
+
+      -- Make sure text region is wide enough
+      fontString:SetWidth(textWidth + 40)
+    end
+
     tab:SetScript("OnClick", function(self)
       Ironman:ShowTab(self.tabKey)
     end)
     return tab
+  end
+
+  -- Helper to update tab selection visuals
+  local function SelectTab(tab)
+    for i, t in ipairs(tabs) do
+      if t == tab then
+        PanelTemplates_SelectTab(t)
+        selectedTab = t
+      else
+        PanelTemplates_DeselectTab(t)
+      end
+    end
   end
 
   tabs[1] = CreateTab(1, "Status", "status")
@@ -74,17 +103,17 @@ function Ironman:OpenUI()
   tabs[4] = CreateTab(4, "Violations", "violations")
   tabs[5] = CreateTab(5, "Settings", "settings")
 
-  tabs[1]:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 5, 7)
-  tabs[2]:SetPoint("LEFT", tabs[1], "RIGHT", -15, 0)
-  tabs[3]:SetPoint("LEFT", tabs[2], "RIGHT", -15, 0)
-  tabs[4]:SetPoint("LEFT", tabs[3], "RIGHT", -15, 0)
-  tabs[5]:SetPoint("LEFT", tabs[4], "RIGHT", -15, 0)
+  -- Position tabs along the bottom
+  tabs[1]:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 5, 2)
+  for i = 2, #tabs do
+    tabs[i]:SetPoint("LEFT", tabs[i-1], "RIGHT", 4, 0)
+  end
 
   -------------------------------------------------
   -- Status Tab
   -------------------------------------------------
   local statusPanel = CreateFrame("Frame", nil, frame)
-  statusPanel:SetSize(510, 400)
+  statusPanel:SetSize(610, 440)
   statusPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   statusPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
@@ -243,7 +272,7 @@ function Ironman:OpenUI()
   -- Rules Tab
   -------------------------------------------------
   local rulesPanel = CreateFrame("Frame", nil, frame)
-  rulesPanel:SetSize(510, 400)
+  rulesPanel:SetSize(610, 440)
   rulesPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   rulesPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
@@ -328,16 +357,16 @@ function Ironman:OpenUI()
   -- Achievements Tab
   -------------------------------------------------
   local achievementsPanel = CreateFrame("Frame", nil, frame)
-  achievementsPanel:SetSize(510, 400)
+  achievementsPanel:SetSize(610, 440)
   achievementsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   achievementsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
   local achieveScrollFrame = CreateFrame("ScrollFrame", "IronmanAchievementsScroll", achievementsPanel, "UIPanelScrollFrameTemplate")
-  achieveScrollFrame:SetSize(490, 290)
+  achieveScrollFrame:SetSize(590, 330)
   achieveScrollFrame:SetPoint("TOPLEFT", 20, -110)
 
   local achieveContent = CreateFrame("Frame", nil, achieveScrollFrame)
-  achieveContent:SetSize(470, 1)
+  achieveContent:SetSize(570, 1)
   achieveScrollFrame:SetScrollChild(achieveContent)
 
   local achieveFontStrings = {}
@@ -393,7 +422,7 @@ function Ironman:OpenUI()
 
       fs:SetText(text)
       fs:SetJustifyH("LEFT")
-      fs:SetWidth(470)
+      fs:SetWidth(570)
       fs:Show()
       yOff = yOff - 20
     end
@@ -405,16 +434,16 @@ function Ironman:OpenUI()
   -- Violations Tab
   -------------------------------------------------
   local violationsPanel = CreateFrame("Frame", nil, frame)
-  violationsPanel:SetSize(510, 400)
+  violationsPanel:SetSize(610, 440)
   violationsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
   violationsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
   local scrollFrame = CreateFrame("ScrollFrame", "IronmanViolationsScroll", violationsPanel, "UIPanelScrollFrameTemplate")
-  scrollFrame:SetSize(490, 290)
+  scrollFrame:SetSize(590, 330)
   scrollFrame:SetPoint("TOPLEFT", 20, -110)
 
   local content = CreateFrame("Frame", nil, scrollFrame)
-  content:SetSize(470, 1)
+  content:SetSize(570, 1)
   scrollFrame:SetScrollChild(content)
 
   local fontStrings = {}
@@ -447,7 +476,7 @@ function Ironman:OpenUI()
       fs:SetPoint("TOPLEFT", 0, yOff)
       fs:SetText(string.format("[%s] %s - %s", entry.time, entry.rule, entry.detail))
       fs:SetJustifyH("LEFT")
-      fs:SetWidth(470)
+      fs:SetWidth(570)
       fs:Show()
       yOff = yOff - 20
     end
@@ -472,7 +501,7 @@ function Ironman:OpenUI()
 -- Settings Tab
 -------------------------------------------------
 local settingsPanel = CreateFrame("Frame", nil, frame)
-settingsPanel:SetSize(510, 400)
+settingsPanel:SetSize(610, 440)
 settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
 settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
 
@@ -592,6 +621,18 @@ end)
     violationsPanel:Hide()
     settingsPanel:Hide()
 
+    -- Find and select the matching tab
+    local matchingTab = nil
+    for _, t in ipairs(tabs) do
+      if t.tabKey == tab then
+        matchingTab = t
+        break
+      end
+    end
+    if matchingTab then
+      SelectTab(matchingTab)
+    end
+
     if tab == "status" then
       statusPanel:Show()
       RefreshStatus()
@@ -623,6 +664,7 @@ end)
   violationsPanel:Hide()
   settingsPanel:Hide()
   RefreshStatus()
+  SelectTab(tabs[1])  -- Select the Status tab initially
 
   -------------------------------------------------
   -- Close Button
