@@ -192,7 +192,11 @@ function Ironman:InitDB()
     -- Existing character - ensure top-level keys exist
     for k, v in pairs(self.defaults) do
       if IronmanModeDB[k] == nil then
-        IronmanModeDB[k] = CopyTable(v)
+        if type(v) == "table" then
+          IronmanModeDB[k] = CopyTable(v)
+        else
+          IronmanModeDB[k] = v
+        end
       end
     end
 

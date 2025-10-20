@@ -2,6 +2,9 @@ local addonName, Ironman = ...
 
 -- Initialize defaults
 local function InitMinimapDB()
+  if not IronmanModeDB then
+    return -- No IronmanModeDB yet, skip minimap setup
+  end
   if not IronmanModeDB.minimap then
     IronmanModeDB.minimap = {
       hide = false,
@@ -50,15 +53,18 @@ frame:SetScript("OnEvent", function(self, event, loadedAddon)
   if loadedAddon == "IronmanMode" then
     InitMinimapDB()
 
-    -- Register the icon with saved position
-    if icon and LDB then
-      icon:Register(addonName, LDB, IronmanModeDB.minimap)
+    -- Only set up minimap icon if IronmanModeDB exists
+    if IronmanModeDB and IronmanModeDB.minimap then
+      -- Register the icon with saved position
+      if icon and LDB then
+        icon:Register(addonName, LDB, IronmanModeDB.minimap)
 
-      -- Show or hide based on saved preference
-      if IronmanModeDB.minimap.hide then
-        icon:Hide(addonName)
-      else
-        icon:Show(addonName)
+        -- Show or hide based on saved preference
+        if IronmanModeDB.minimap.hide then
+          icon:Hide(addonName)
+        else
+          icon:Show(addonName)
+        end
       end
     end
 
